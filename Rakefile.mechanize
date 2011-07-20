@@ -1,0 +1,42 @@
+require 'rake'
+require 'mechanize'
+require './config'
+require 'logger'
+
+task :default => :update_spreadsheet_of_glory
+
+task :update_spreadsheet_of_glory do
+  stats = get_new_pod_stats
+  #stats[:pushups]
+end
+
+def get_new_pod_stats
+  agent = Mechanize.new
+  
+  agent.basic_auth(USERNAME, PASSWORD)
+  agent.user_agent = "Opera/9.50 (Windows NT 5.1; U; en-GB)"
+  page = agent.get('http://belugapods.com/pods')
+  # pp page
+  # login_page = agent.click page.link_with(:text => "Login")
+  form = page.form('login')
+  # # pp login_page
+  # # pp form
+  auth_token = form._xsrf
+  # form.ident = USERNAME
+  # form.password = PASSWORD
+  # # pp form.buttons
+  # # pp form
+  agent.log = Logger.new(STDOUT)
+  cookie = Mechanize::Cookie.new('is_human', 'true')
+  cookie.domain = "belugapods.com"
+  cookie.path = "/"
+  agent.cookie_jar.add URI.parse('https://belugapods.com/login'), cookie
+  agent.post('https://belugapods.com/login', '_xsrf' => auth_token, :ident => USERNAME, :password => PASSWORD)
+  # pod_list_page = agent.submit(form)
+  # 
+  #   pp pod_list_page
+  #   pod_list_page = agent.get('http://belugapods.com/pods')
+  # pp pod_list_page
+  #agent.basic_auth(USERNAME, PASSWORD)
+  #agent.post('http://belugapods.com/api/updates/createUpdate', '_xsrf' => auth_token, :podid => '4e03e3a4297b501e0c0e939d', :text => 'test')
+end
