@@ -18,6 +18,7 @@ require 'lib/apache-mime4j-0.6.jar'
 require 'lib/httpmime-4.0.1.jar'
 require 'lib/htmlunit-core-js-2.8.jar'
 
+
 require './config'
 
 include_class 'com.gargoylesoftware.htmlunit.WebClient';
@@ -39,7 +40,27 @@ def get_new_pod_stats
   form.get_input_by_name('password').set_value_attribute PASSWORD
   pods_page = form.get_input_by_value("Login").click
   glory_page = pods_page.get_anchor_by_text('Pod of Glory').click
-  glory_form = glory_page.get_forms.first
-  glory_form.get_text_area_by_name('text').text = 'I am necessary. This is automated.'
-  glory_form.get_input_by_value('Send').click
+  # glory_form = glory_page.get_forms.first
+  # glory_form.get_text_area_by_name('text').text = 'I am necessary. This is automated.'
+  # glory_form.get_input_by_value('Send').click
+  
+  # glory_page.get_by_xpath("//div[@class='update']/span[@class='utext']")[0].as_xml
+  glory_page.get_by_xpath("//div[@class='update']").each do |div|
+    # puts div.as_xml
+    id = div.id
+    name = nil
+    div.get_by_xpath("//div[@id='#{id}']//a[@class='nojs']").each do |name_anchor|
+      name = name_anchor.as_text
+    end
+    time = nil
+    div.get_by_xpath("//div[@id='#{id}']//span[@class='utime']").each do |time_span|
+      time = time_span.get_attribute 'ct'
+    end
+    div.get_by_xpath("//div[@id='#{id}']//span[@class='utext']").each do |span|
+      if span.as_text =~ /PU: [\d-]+/
+        match = span.as_text.scan(/\d+/).join('-')
+        puts "#{name} did #{match} on #{Time.at time.to_i}"
+      end
+    end
+  end
 end
