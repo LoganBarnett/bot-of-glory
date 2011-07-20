@@ -40,11 +40,7 @@ def get_new_pod_stats
   form.get_input_by_name('password').set_value_attribute PASSWORD
   pods_page = form.get_input_by_value("Login").click
   glory_page = pods_page.get_anchor_by_text('Pod of Glory').click
-  # glory_form = glory_page.get_forms.first
-  # glory_form.get_text_area_by_name('text').text = 'I am necessary. This is automated.'
-  # glory_form.get_input_by_value('Send').click
-  
-  # glory_page.get_by_xpath("//div[@class='update']/span[@class='utext']")[0].as_xml
+
   glory_page.get_by_xpath("//div[@class='update']").each do |div|
     # puts div.as_xml
     id = div.id
