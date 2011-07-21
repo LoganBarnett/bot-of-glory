@@ -21,6 +21,9 @@ require 'lib/htmlunit-core-js-2.8.jar'
 
 require './config'
 
+require 'gdata'
+require 'mechanize'
+
 include_class 'com.gargoylesoftware.htmlunit.WebClient';
 include_class 'com.gargoylesoftware.htmlunit.BrowserVersion';
 
@@ -28,10 +31,11 @@ task :default => :update_spreadsheet_of_glory
 
 task :update_spreadsheet_of_glory do
   stats = get_new_pod_stats
-  #stats[:pushups]
+  publish_new_stats(stats)
 end
 
 def get_new_pod_stats
+  stats = {}
   version = BrowserVersion.new( "Netscape", "5.0 (Macintosh; en-US)", "Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en-US; rv:1.8.1.14) Gecko/20080404 Firefox/2.0.0.14", 5.0)
   client = WebClient.new(version)
   page = client.get_page('https://belugapods.com/login')
@@ -55,8 +59,64 @@ def get_new_pod_stats
     div.get_by_xpath("//div[@id='#{id}']//span[@class='utext']").each do |span|
       if span.as_text =~ /PU: [\d-]+/
         match = span.as_text.scan(/\d+/).join('-')
-        puts "#{name} did #{match} on #{Time.at time.to_i}"
+        print "#{name} did #{match} pushups on #{Time.at time.to_i}..."
+        if Time.at(time.to_i).yday == Time.now.yday
+          stats[name] = {:time => Time.at(time.to_i), :pushups => match.split('-')}
+          puts " will record for today."
+        else
+          puts " skipping."
+        end
       end
     end
   end
+  stats
+end
+
+SPREADHSHEET_ID = 't6AzWV82wRuT-SiwDmMQTUQ'
+def publish_new_stats(stats)
+  spreadsheet = GData::Client::Spreadsheets.new
+  spreadsheet.version = 3
+  spreadsheet.headers['If-Match'] = '*'
+  spreadsheet.source = 'glory-bot'
+  spreadsheet.clientlogin(GOOGLE_USERNAME, GOOGLE_PASSWORD)
+
+  stats.each do |name, entry|
+    cell_url = get_cell_url_for name, spreadsheet
+    puts entry[:time]
+    puts entry[:time].yday
+    puts Time.now.yday
+    next unless entry[:time].yday == Time.now.yday && entry[:time].year == Time.now.year
+    row = date_to_row_offset(Time.now)
+    entry[:pushups].each_with_index do |pushups, index|
+      column = index + 2
+      puts "Setting pushups for #{name} at (#{row}, #{column}) to #{pushups}"
+      cell_atom = <<-ENDL
+<entry xmlns="http://www.w3.org/2005/Atom"
+    xmlns:gs="http://schemas.google.com/spreadsheets/2006">
+  <id>#{cell_url}/R#{row}C#{column}</id>
+  <link rel="edit" type="application/atom+xml"
+    href="#{cell_url}/R#{row}C#{column}"/>
+  <gs:cell row="#{row}" col="#{column}" inputValue="#{pushups}"/>
+</entry>
+ENDL
+      spreadsheet.put cell_url + "/R#{row}C#{column}", cell_atom
+    end
+  end
+end
+
+def get_cell_url_for(name, spreadsheet)
+  response = spreadsheet.get "https://spreadsheets.google.com/feeds/worksheets/#{SPREADHSHEET_ID}/private/full"
+  xml = response.to_xml
+  xpath = "//title[text()='#{name}']/../link[@rel='http://schemas.google.com/spreadsheets/2006#cellsfeed']"
+  puts "Searching with - " + xpath
+  cell_url = xml.elements[xpath].attribute('href')
+  puts cell_url
+  cell_url.to_s
+end
+
+def date_to_row_offset(date)
+  seconds = date - Time.parse('6/24/2011')
+  row_start = 2
+  days = (seconds / 60 / 60 / 24) + row_start
+  days.to_i
 end
