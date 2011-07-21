@@ -81,11 +81,9 @@ def publish_new_stats(stats)
   spreadsheet.clientlogin(GOOGLE_USERNAME, GOOGLE_PASSWORD)
 
   stats.each do |name, entry|
-    cell_url = get_cell_url_for name, spreadsheet
-    puts entry[:time]
-    puts entry[:time].yday
-    puts Time.now.yday
     next unless entry[:time].yday == Time.now.yday && entry[:time].year == Time.now.year
+
+    cell_url = get_cell_url_for name, spreadsheet
     row = date_to_row_offset(Time.now)
     entry[:pushups].each_with_index do |pushups, index|
       column = index + 2
