@@ -108,9 +108,7 @@ def get_cell_url_for(name, spreadsheet)
   response = spreadsheet.get "https://spreadsheets.google.com/feeds/worksheets/#{SPREADHSHEET_ID}/private/full"
   xml = response.to_xml
   xpath = "//title[text()='#{name}']/../link[@rel='http://schemas.google.com/spreadsheets/2006#cellsfeed']"
-  puts "Searching with - " + xpath
   cell_url = xml.elements[xpath].attribute('href')
-  puts cell_url
   cell_url.to_s
 end
 
