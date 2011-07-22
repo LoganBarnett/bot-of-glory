@@ -83,7 +83,13 @@ def publish_new_stats(stats)
   stats.each do |name, entry|
     next unless entry[:time].yday == Time.now.yday && entry[:time].year == Time.now.year
 
-    cell_url = get_cell_url_for name, spreadsheet
+    cell_url = nil
+    begin
+      cell_url = get_cell_url_for name, spreadsheet
+    rescue => e
+      puts "Missing worksheet for #{name}. Skipping #{name}."
+      next
+    end
     row = date_to_row_offset(Time.now)
     entry[:pushups].each_with_index do |pushups, index|
       column = index + 2
@@ -106,7 +112,8 @@ def get_cell_url_for(name, spreadsheet)
   response = spreadsheet.get "https://spreadsheets.google.com/feeds/worksheets/#{SPREADHSHEET_ID}/private/full"
   xml = response.to_xml
   xpath = "//title[text()='#{name}']/../link[@rel='http://schemas.google.com/spreadsheets/2006#cellsfeed']"
-  cell_url = xml.elements[xpath].attribute('href')
+  cell = xml.elements[xpath]
+  cell_url = cell.attribute('href')
   cell_url.to_s
 end
 
