@@ -57,15 +57,11 @@ def get_new_pod_stats
       time = time_span.get_attribute 'ct'
     end
     div.get_by_xpath("//div[@id='#{id}']//span[@class='utext']").each do |span|
-      if span.as_text =~ /PU: [\d-]+/
+      if span.as_text =~ /PU: [\d-]+/i
         match = span.as_text.scan(/\d+/).join('-')
-        print "#{name} did #{match} pushups on #{Time.at time.to_i}..."
-        if Time.at(time.to_i).yday == Time.now.yday
-          stats[name] = {:time => Time.at(time.to_i), :pushups => match.split('-')}
-          puts " will record for today."
-        else
-          puts " skipping."
-        end
+        puts "#{name} did #{match} pushups on #{Time.at time.to_i}..."
+        stats[name] ||= []
+        stats[name] << {:amounts => match.split('-'), :time => Time.at(time.to_i), :kind => :pushups}
       end
     end
   end
@@ -80,8 +76,8 @@ def publish_new_stats(stats)
   spreadsheet.source = 'glory-bot'
   spreadsheet.clientlogin(GOOGLE_USERNAME, GOOGLE_PASSWORD)
 
-  stats.each do |name, entry|
-    next unless entry[:time].yday == Time.now.yday && entry[:time].year == Time.now.year
+  stats.each do |name, entries|
+#    next unless entry[:time].yday == Time.now.yday && entry[:time].year == Time.now.year
 
     cell_url = nil
     begin
@@ -90,20 +86,24 @@ def publish_new_stats(stats)
       puts "Missing worksheet for #{name}. Skipping #{name}."
       next
     end
-    row = date_to_row_offset(Time.now)
-    entry[:pushups].each_with_index do |pushups, index|
-      column = index + 2
-      puts "Setting pushups for #{name} at (#{row}, #{column}) to #{pushups}"
-      cell_atom = <<-ENDL
+
+    entries.each do |entry|
+      entry[:amounts].each_with_index do |set, index|
+        row = date_to_row_offset(entry[:time])
+        # different kinds get different columns
+        column = index + 2
+        puts "Setting pushups for #{name} at (#{row}, #{column}) to #{set}"
+        cell_atom = <<-ENDL
 <entry xmlns="http://www.w3.org/2005/Atom"
     xmlns:gs="http://schemas.google.com/spreadsheets/2006">
   <id>#{cell_url}/R#{row}C#{column}</id>
   <link rel="edit" type="application/atom+xml"
     href="#{cell_url}/R#{row}C#{column}"/>
-  <gs:cell row="#{row}" col="#{column}" inputValue="#{pushups}"/>
+  <gs:cell row="#{row}" col="#{column}" inputValue="#{set}"/>
 </entry>
 ENDL
-      spreadsheet.put cell_url + "/R#{row}C#{column}", cell_atom
+        spreadsheet.put cell_url + "/R#{row}C#{column}", cell_atom
+      end
     end
   end
 end
